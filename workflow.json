@@ -1,0 +1,152 @@
+{
+  "name": "Voice AI Receptionist Booking Flow",
+  "active": false,
+  "versionId": "1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book-appointment",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-in-1",
+      "name": "Webhook In",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [220, 280]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/health"
+      },
+      "id": "backend-health-1",
+      "name": "Backend Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [440, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"status\"]}}",
+              "operation": "equal",
+              "value2": "healthy"
+            }
+          ]
+        }
+      },
+      "id": "if-backend-1",
+      "name": "If Backend Healthy",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [660, 280]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/ai/health"
+      },
+      "id": "ai-health-1",
+      "name": "AI Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"status\"]}}",
+              "operation": "equal",
+              "value2": "healthy"
+            }
+          ]
+        }
+      },
+      "id": "if-ai-1",
+      "name": "If AI Healthy",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/webhooks/book-and-log",
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={{$json}}"
+      },
+      "id": "book-log-1",
+      "name": "Book And Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1350, 80]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}"
+      },
+      "id": "respond-success-1",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1570, 80]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"error\",\"message\":\"AI health check failed\"}",
+        "responseCode": 503
+      },
+      "id": "respond-ai-fail-1",
+      "name": "Respond AI Fail",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1350, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"error\",\"message\":\"Backend health check failed\"}",
+        "responseCode": 503
+      },
+      "id": "respond-backend-fail-1",
+      "name": "Respond Backend Fail",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Webhook In": {
+      "main": [[{ "node": "Backend Health Check", "type": "main", "index": 0 }]]
+    },
+    "Backend Health Check": {
+      "main": [[{ "node": "If Backend Healthy", "type": "main", "index": 0 }]]
+    },
+    "If Backend Healthy": {
+      "main": [
+        [{ "node": "AI Health Check", "type": "main", "index": 0 }],
+        [{ "node": "Respond Backend Fail", "type": "main", "index": 0 }]
+      ]
+    },
+    "AI Health Check": {
+      "main": [[{ "node": "If AI Healthy", "type": "main", "index": 0 }]]
+    },
+    "If AI Healthy": {
+      "main": [
+        [{ "node": "Book And Log", "type": "main", "index": 0 }],
+        [{ "node": "Respond AI Fail", "type": "main", "index": 0 }]
+      ]
+    },
+    "Book And Log": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "meta": {}
+}
